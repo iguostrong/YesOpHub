@@ -74,7 +74,7 @@ jobs:
         chmod +x router/nanopi_r4s/*.sh
         cd openwrt
         $GITHUB_WORKSPACE/$DIY_P1_SH
-        ../router/nanopi_r4s/preset-clash-core.sh armv8
+        $GITHUB_WORKSPACE/router/nanopi_r4s/preset-clash-core.sh armv8
 
     - name: Update feeds
       run: cd openwrt && ./scripts/feeds update -a

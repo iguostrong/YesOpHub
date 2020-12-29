@@ -10,11 +10,11 @@ name: Build OpenWrt for NanoPi R4S-1GB
 on:
   repository_dispatch:
   workflow_dispatch:
-    inputs:
-      ssh:
-        description: 'SSH connection to Actions'
-        required: false
-        default: 'false'
+    #inputs:
+     #ssh:
+       #description: 'SSH connection to Actions'
+       #required: false
+       #default: 'false'
   #push:
     #branches:
       #- main
@@ -22,7 +22,7 @@ on:
       #- 'router/nanopi_r4s/.config-1gb'
       #- '.github/workflows/build-openwrt-nanopi_r4s-1gb.yml'
   schedule:
-    - cron: '0 17 * * *'
+    - cron: '0 12 * * *'
 
 env:
   REPO_URL: https://github.com/coolsnowwolf/lede
@@ -71,9 +71,10 @@ jobs:
     - name: Load custom feeds
       run: |
         [ -e $FEEDS_CONF ] && mv $FEEDS_CONF openwrt/feeds.conf.default
-        chmod +x $DIY_P1_SH
+        chmod +x router/nanopi_r4s/*.sh
         cd openwrt
         $GITHUB_WORKSPACE/$DIY_P1_SH
+        $GITHUB_WORKSPACE/router/nanopi_r4s/preset-clash-core.sh armv8                                                              
 
     - name: Update feeds
       run: cd openwrt && ./scripts/feeds update -a
@@ -85,7 +86,7 @@ jobs:
       run: |
         [ -e files ] && mv files openwrt/files
         [ -e $CONFIG_FILE ] && mv $CONFIG_FILE openwrt/.config
-        chmod +x $DIY_P2_SH
+        chmod +x router/nanopi_r4s/*.sh
         cd openwrt
         $GITHUB_WORKSPACE/$DIY_P2_SH
 
@@ -97,13 +98,6 @@ jobs:
         make download -j8
         find dl -size -1024c -exec ls -l {} \;
         find dl -size -1024c -exec rm -f {} \;
-
-    - name: SSH connection to Actions @ Ctrl+C to enter, Ctrl+D to exit
-      uses: P3TERX/ssh2actions@main
-      if: (github.event.inputs.ssh == 'true' && github.event.inputs.ssh  != 'false') || contains(github.event.action, 'ssh')
-      env:
-        TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-        TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
 
     - name: Compile the firmware
       id: compile

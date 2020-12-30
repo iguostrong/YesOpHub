@@ -51,11 +51,13 @@ jobs:
       run: |
         sudo rm -rf /etc/apt/sources.list.d/* /usr/share/dotnet /usr/local/lib/android /opt/ghc
         sudo -E apt-get -qq update
-        sudo -E apt-get -qq install $(curl -fsSL git.io/depends-ubuntu-1804) tree
+        sudo -E apt-get -qq install $(curl -fsSL git.io/depends-ubuntu-1804)
         sudo -E apt-get -qq autoremove --purge
         sudo -E apt-get -qq clean
         sudo timedatectl set-timezone "$TZ"
-
+        sudo mkdir -p /workdir
+        sudo chown $USER:$GROUPS /workdir
+        
     - name: Clone Source Code
       working-directory: /workdir
       run: |
@@ -65,29 +67,23 @@ jobs:
 
     - name: Update Feeds
       id: update
-      run: |
-        cd openwrt
-        echo "OPENWRTROOT=$PWD" >> $GITHUB_ENV
-        echo "::set-output name=OPENWRTROOT::$(echo $PWD)"
-        ./scripts/feeds update -a
+      run: cd openwrt && ./scripts/feeds update -a
 
     - name: Install Feeds
-      run: |
-        cd $OPENWRTROOT
-        ./scripts/feeds install -a
+      run: cd openwrt && ./scripts/feeds install -a
 
     - name: Load Custom Configuration
       run: |
-        [ -e files ] && mv files $OPENWRTROOT/files
-        [ -e $CONFIG_FILE ] && mv $CONFIG_FILE $OPENWRTROOT/.config
-        chmod +x scripts/*.sh
-        cd $OPENWRTROOT
+        [ -e files ] && mv files openwrt/files
+        [ -e $CONFIG_FILE ] && mv $CONFIG_FILE openwrt/.config
+        chmod +x $DIY_SH
+        cd openwrt
         ../$DIY_SH
 
     - name: Download Package
       id: package
       run: |
-        cd $OPENWRTROOT
+        cd openwrt
         make defconfig
         cat .config
         make download -j8
@@ -97,7 +93,7 @@ jobs:
     - name: Compile the firmware
       id: compile
       run: |
-        cd $OPENWRTROOT
+        cd openwrt
         echo -e "$(nproc) thread compile"
         make -j$(nproc) || make -j1 || make -j1 V=s
         grep '^CONFIG_TARGET.*DEVICE.*=y' .config | sed -r 's/.*DEVICE_(.*)=y/\1/' > DEVICE_NAME
@@ -110,7 +106,7 @@ jobs:
       if: steps.compile.outputs.status == 'success' && env.UPLOAD_BIN_DIR == 'true'
       with:
         name: Bin_openwrt_${{ env.DEVICE_NAME }}_${{ env.FILE_DATE }}
-        path: $OPENWRTROOT/bin
+        path: cd openwrt/bin
         retention-days: ${{ env.RECENT_LASTEST }}
         if-no-files-found: ignore
         
@@ -118,7 +114,7 @@ jobs:
       id: organize
       if: env.UPLOAD_FIRMWARE == 'true' && !cancelled()
       run: |
-        cd $OPENWRTROOT/bin/targets/*/*
+        cd openwrt/bin/targets/*/*
         rm -rf packages
         echo "FILEPATH=$PWD" >> $GITHUB_ENV
         echo "::set-output name=status::success"

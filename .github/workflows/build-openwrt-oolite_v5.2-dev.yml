@@ -1,36 +1,26 @@
-#========================================================================================================================
-# https://github.com/ophub/op
-# Description: Automatically Build OpenWrt for NanoPi R4S-1GB
-# Function: Workflows for Build NanoPi R4S-1GB
-# Cron: min (0 - 59) / hour (0 - 23) / day of month (1 - 31) / month (1 - 12) / day of week (0 - 6)(Sunday - Saturday)
-#========================================================================================================================
+#=================================================
+# https://github.com/P3TERX/Actions-OpenWrt
+# Description: Build OpenWrt using GitHub Actions
+# Lisence: MIT
+# Author: P3TERX
+# Blog: https://p3terx.com
+#=================================================
 
-name: Build OpenWrt for NanoPi R4S-1GB
+name: Build OpenWrt for Oolite_v5.2-Dev
 
 on:
   repository_dispatch:
   workflow_dispatch:
-    #inputs:
-     #ssh:
-       #description: 'SSH connection to Actions'
-       #required: false
-       #default: 'false'
-  #push:
-    #branches:
-      #- main
-    #paths:
-      #- 'router/nanopi_r4s/.config-1gb'
-      #- '.github/workflows/build-openwrt-nanopi_r4s-1gb.yml'
   schedule:
-    - cron: '0 12 * * *'
+    - cron: 0 18 * * *
+  # watch:
+  #   types: started
 
 env:
   REPO_URL: https://github.com/coolsnowwolf/lede
   REPO_BRANCH: master
-  FEEDS_CONF: router/nanopi_r4s/feeds.conf.default
-  CONFIG_FILE: router/nanopi_r4s/.config-1gb
-  DIY_P1_SH: router/nanopi_r4s/diy-part1.sh
-  DIY_P2_SH: router/nanopi_r4s/diy-part2.sh
+  CONFIG_FILE: router/oolite_v5.2-dev/.config
+  DIY_SH: router/oolite_v5.2-dev/lean.sh
   UPLOAD_BIN_DIR: false
   UPLOAD_FIRMWARE: true
   UPLOAD_RELEASE: true
@@ -40,61 +30,67 @@ env:
   TZ: Asia/Shanghai
 
 jobs:
-  build:
+  Build:
     runs-on: ubuntu-18.04
     if: github.event.repository.owner.id == github.event.sender.id
+    outputs:
+      OPENWRTROOT: ${{ steps.update.outputs.OPENWRTROOT }}
+      PLATFORM: ${{ steps.compile.outputs.PLATFORM }}
+      TARGET: ${{ steps.compile.outputs.TARGET }}
+      SUBTARGET: ${{ steps.compile.outputs.SUBTARGET }}
+      FIRMWARE: ${{ steps.compile.outputs.FIRMWARE }}
+      GENERATE_STATUS: ${{ steps.generate.outputs.GENERATE_STATUS }}
 
     steps:
     - name: Checkout
-      uses: actions/checkout@v2
+      uses: actions/checkout@main
 
-    - name: Initialization environment
+    - name: Initialization Environment
       env:
         DEBIAN_FRONTEND: noninteractive
       run: |
         sudo rm -rf /etc/apt/sources.list.d/* /usr/share/dotnet /usr/local/lib/android /opt/ghc
         sudo -E apt-get -qq update
-        sudo -E apt-get -qq install $(curl -fsSL git.io/depends-ubuntu-1804)
+        sudo -E apt-get -qq install $(curl -fsSL git.io/depends-ubuntu-1804) tree
         sudo -E apt-get -qq autoremove --purge
         sudo -E apt-get -qq clean
         sudo timedatectl set-timezone "$TZ"
-        sudo mkdir -p /workdir
-        sudo chown $USER:$GROUPS /workdir
 
-    - name: Clone source code
+    - name: Clone Source Code
+      run: |
       working-directory: /workdir
       run: |
         df -hT $PWD
         git clone --depth 1 $REPO_URL -b $REPO_BRANCH openwrt
         ln -sf /workdir/openwrt $GITHUB_WORKSPACE/openwrt
 
-    - name: Load custom feeds
+    - name: Update Feeds
+      id: update
       run: |
-        [ -e $FEEDS_CONF ] && mv $FEEDS_CONF openwrt/feeds.conf.default
-        chmod +x router/nanopi_r4s/*.sh
         cd openwrt
-        $GITHUB_WORKSPACE/$DIY_P1_SH
-        $GITHUB_WORKSPACE/router/nanopi_r4s/preset-clash-core.sh armv8                                                              
+        echo "OPENWRTROOT=$PWD" >> $GITHUB_ENV
+        echo "::set-output name=OPENWRTROOT::$(echo $PWD)"
+        ./scripts/feeds update -a
 
-    - name: Update feeds
-      run: cd openwrt && ./scripts/feeds update -a
-
-    - name: Install feeds
-      run: cd openwrt && ./scripts/feeds install -a
-
-    - name: Load custom configuration
+    - name: Install Feeds
       run: |
-        [ -e files ] && mv files openwrt/files
-        [ -e $CONFIG_FILE ] && mv $CONFIG_FILE openwrt/.config
-        chmod +x router/nanopi_r4s/*.sh
-        cd openwrt
-        $GITHUB_WORKSPACE/$DIY_P2_SH
+        cd $OPENWRTROOT
+        ./scripts/feeds install -a
 
-    - name: Download package
+    - name: Load Custom Configuration
+      run: |
+        [ -e files ] && mv files $OPENWRTROOT/files
+        [ -e $CONFIG_FILE ] && mv $CONFIG_FILE $OPENWRTROOT/.config
+        chmod +x scripts/*.sh
+        cd $OPENWRTROOT
+        ../$DIY_SH
+
+    - name: Download Package
       id: package
       run: |
-        cd openwrt
+        cd $OPENWRTROOT
         make defconfig
+        cat .config
         make download -j8
         find dl -size -1024c -exec ls -l {} \;
         find dl -size -1024c -exec rm -f {} \;
@@ -102,36 +98,32 @@ jobs:
     - name: Compile the firmware
       id: compile
       run: |
-        cd openwrt
+        cd $OPENWRTROOT
         echo -e "$(nproc) thread compile"
         make -j$(nproc) || make -j1 || make -j1 V=s
         grep '^CONFIG_TARGET.*DEVICE.*=y' .config | sed -r 's/.*DEVICE_(.*)=y/\1/' > DEVICE_NAME
         [ -s DEVICE_NAME ] && echo "DEVICE_NAME=$(cat DEVICE_NAME)" >> $GITHUB_ENV
         echo "FILE_DATE=$(date +"%Y.%m.%d.%H%M")" >> $GITHUB_ENV
-        echo "::set-output name=status::success"
-
-    - name: Check space usage
-      if: (!cancelled())
-      run: df -hT
+        echo "::set-output name=COMPILE_STATUS::success"
 
     - name: Upload bin directory
       uses: actions/upload-artifact@v2
       if: steps.compile.outputs.status == 'success' && env.UPLOAD_BIN_DIR == 'true'
       with:
         name: Bin_openwrt_${{ env.DEVICE_NAME }}_${{ env.FILE_DATE }}
-        path: openwrt/bin
+        path: $OPENWRTROOT/bin
         retention-days: ${{ env.RECENT_LASTEST }}
         if-no-files-found: ignore
-
+        
     - name: Organize files
       id: organize
       if: env.UPLOAD_FIRMWARE == 'true' && !cancelled()
       run: |
-        cd openwrt/bin/targets/*/*
+        cd $OPENWRTROOT/bin/targets/*/*
         rm -rf packages
         echo "FILEPATH=$PWD" >> $GITHUB_ENV
         echo "::set-output name=status::success"
-
+        
     - name: Upload firmware directory
       uses: actions/upload-artifact@v2
       if: steps.organize.outputs.status == 'success' && env.UPLOAD_FIRMWARE == 'true' && !cancelled()
@@ -139,22 +131,22 @@ jobs:
         name: openwrt_${{ env.DEVICE_NAME }}_${{ env.FILE_DATE }}
         path: ${{ env.FILEPATH }}
         retention-days: ${{ env.RECENT_LASTEST }}
-        if-no-files-found: ignore
-
+        if-no-files-found: ignore  
+        
     - name: Upload firmware to cowtransfer
       if: steps.organize.outputs.status == 'success' && env.UPLOAD_COWTRANSFER == 'true' && !cancelled()
       run: |
         curl -fsSL git.io/file-transfer | sh
         ./transfer cow --block 2621440 -s -p 64 --no-progress ${{ env.FILEPATH }} 2>&1 | tee cowtransfer.log
         echo "COW_URL=$(cat cowtransfer.log | grep https | cut -f3 -d" ")" >> $GITHUB_ENV
-
+        
     - name: Upload firmware to WeTransfer
       if: steps.organize.outputs.status == 'success' && env.UPLOAD_WETRANSFER == 'true' && !cancelled()
       run: |
         curl -fsSL git.io/file-transfer | sh
         ./transfer wet -s -p 16 --no-progress ${{ env.FILEPATH }} 2>&1 | tee wetransfer.log
         echo "WET_URL=$(cat wetransfer.log | grep https | cut -f3 -d" ")" >> $GITHUB_ENV
-
+        
     - name: Upload firmware to release
       uses: softprops/action-gh-release@v1
       if: steps.organize.outputs.status == 'success' && env.UPLOAD_RELEASE == 'true' && !cancelled()
@@ -166,11 +158,10 @@ jobs:
         body: |
           This is OpenWrt firmware for ${{ env.DEVICE_NAME }}
           * Firmware information
-          Default IP: 192.168.10.1
+          Default IP: 10.168.1.1
           Default username: root
           Default password: password
           Default WIFI name: OpenWrt
           Default WIFI password: none
           [WETRANSFER](${{ env.WET_URL }})
-
 

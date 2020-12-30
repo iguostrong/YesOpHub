@@ -10,19 +10,19 @@ name: Build OpenWrt for WRT3200ACM
 on:
   repository_dispatch:
   workflow_dispatch:
-    inputs:
-      ssh:
-        description: 'SSH connection to Actions'
-        required: false
-        default: 'false'
+   #inputs:
+     #ssh:
+       #description: 'SSH connection to Actions'
+       #required: false
+       #default: 'false'
   #push:
     #branches:
       #- main
     #paths:
       #- 'router/linksys_wrt3200acm/.config'
       #- '.github/workflows/build-openwrt-linksys_wrt3200acm.yml'
-  schedule:
-    - cron: '0 17 * * *'
+  #schedule:
+    #- cron: '0 17 * * *'
 
 env:
   REPO_URL: https://github.com/coolsnowwolf/lede

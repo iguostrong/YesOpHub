@@ -56,7 +56,7 @@ You can download the OpwnWrt for NanoPi R4S firmware from [Releases](https://git
 
 | Name | Value |
 | ---- | ---- |
-| Default IP | 192.168.1.1 |
+| Default IP | 192.168.10.1 |
 | Default username | root |
 | Default password | password |
 | Default WIFI name | OpenWrt |

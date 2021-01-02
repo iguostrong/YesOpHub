@@ -22,7 +22,7 @@ on:
       #- 'router/x86_64/.config'
       #- '.github/workflows/build-openwrt-x86_64.yml'
   schedule:
-    - cron: '0 17 * * *'
+    - cron: '0 15 * * *'
 
 env:
   REPO_URL: https://github.com/coolsnowwolf/lede

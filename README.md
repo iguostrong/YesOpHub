@@ -1,2 +1,1 @@
 ![OPhub logo](/logo.svg)
-

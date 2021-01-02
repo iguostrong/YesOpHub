@@ -6,7 +6,7 @@
 # Blog: https://p3terx.com
 #=================================================
 
-name: Build OpenWrt for Oolite_v5.2-Dev
+name: Build OpenWrt for Oolite_v5.2-Dev(WIFI)
 
 on:
   repository_dispatch:
@@ -19,8 +19,8 @@ on:
 env:
   REPO_URL: https://github.com/coolsnowwolf/lede
   REPO_BRANCH: master
-  CONFIG_FILE: router/oolite_v5.2-dev/.config
-  DIY_SH: router/oolite_v5.2-dev/lean.sh
+  CONFIG_FILE: router/oolite_v5.2-dev(WIFI)/.config
+  DIY_SH: router/oolite_v5.2-dev(WIFI)/lean.sh
   UPLOAD_BIN_DIR: false
   UPLOAD_FIRMWARE: true
   UPLOAD_RELEASE: true

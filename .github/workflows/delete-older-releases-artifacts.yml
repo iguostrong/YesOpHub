@@ -15,8 +15,8 @@ on:
       #- main
     #paths:
       #- '.github/workflows/delete-older-releases-artifacts.yml'
-  schedule:
-    - cron: '0 23 * * *'
+  #schedule:
+    #- cron: '0 23 * * *'
 
 env:
   DELETE_RELEASE: true

@@ -10,13 +10,13 @@ name: Use Releases rootfs file to Packaging S9xxx
 on:
   repository_dispatch:
   workflow_dispatch:
-    inputs:
-      ssh:
-        description: 'SSH connection to Actions'
-        required: false
-        default: 'false'
-  schedule:
-    - cron: '0 22 * * *'
+    #inputs:
+     #ssh:
+       #description: 'SSH connection to Actions'
+       #required: false
+       #default: 'false'
+ #schedule:
+   #- cron: '0 22 * * *'
 
 env:
   UPLOAD_FIRMWARE: true
